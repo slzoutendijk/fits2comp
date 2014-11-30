@@ -1,0 +1,85 @@
+#!/home/bas/venv/fits2comp/bin/python
+
+import argparse
+import pyfits
+import numpy as np
+from PIL import Image
+
+
+def mapping(value):
+    mapped = scaling(value.astype(float)-sys_args.minimum) / \
+        scaling(sys_args.maximum - sys_args.minimum)
+    mapped[value < sys_args.minimum] = 0
+    mapped[value > sys_args.maximum] = 1
+    return mapped
+
+
+def scaling(value):
+    scaled = np.arcsinh(value/sys_args.softening)
+    return scaled
+
+
+parser = argparse.ArgumentParser(
+    description='Create color composite images from FITS files',
+    epilog="""If only RED is given, GREEN and BLUE are taken equal to RED,
+           which produces a grayscale image.  If RED and GREEN are given,
+           BLUE is extrapolated from them.""")
+parser.add_argument('-c', '--crop', metavar=('LEFT', 'UP', 'RIGHT', 'DOWN'),
+                    nargs=4, type=int, help='cropping bounding box')
+parser.add_argument('-M', '--maximum', default=65535, type=float,
+                    help='maximum FITS pixel value')
+parser.add_argument('-m', '--minimum', default=0, type=float,
+                    help='minimum FITS pixel value')
+parser.add_argument('-r', '--rotate', metavar='DEGREES', default=0, type=float,
+                    help='rotate image by DEGREES degrees')
+parser.add_argument('-s', '--softening', default=1, type=float,
+                    help='softening parameter')
+parser.add_argument('red', metavar='RED', help='red channel FITS file')
+parser.add_argument('green', metavar='GREEN', nargs='?',
+                    help='green channel FITS file')
+parser.add_argument('blue', metavar='BLUE', nargs='?',
+                    help='blue channel FITS file')
+parser.add_argument('composite', metavar='COMPOSITE',
+                    help='output composite image')
+sys_args = parser.parse_args()
+
+red_file = pyfits.open(sys_args.red)
+red = np.nan_to_num(red_file[0].data)
+red_file.close()
+if sys_args.green is not None:
+    green_file = pyfits.open(sys_args.green)
+    green = np.nan_to_num(green_file[0].data)
+    green_file.colse()
+    if sys_args.blue is not None:
+        blue_file = pyfits.open(sys_args.blue)
+        blue = nan_to_num(blue_file[0].data)
+        blue_file.close()
+    else:
+        blue = 2 * green - red
+else:
+    green = red
+    blue = red
+average = (red+green+blue) / 3
+
+Red = np.zeros(red.shape)
+Red[average != 0] = red[average != 0] * mapping(average[average != 0]) / \
+    average[average != 0]
+Green = np.zeros(green.shape)
+Green[average != 0] = green[average != 0] * mapping(average[average != 0]) / \
+    average[average != 0]
+Blue = np.zeros(blue.shape)
+Blue[average != 0] = blue[average != 0] * mapping(average[average != 0]) / \
+    average[average != 0]
+amax = np.amax([Red, Green, Blue], axis=0)
+Red[amax > 1] = Red[amax > 1] / amax[amax > 1]
+Green[amax > 1] = Green[amax > 1] / amax[amax > 1]
+Blue[amax > 1] = Blue[amax > 1] / amax[amax > 1]
+
+Red_image = Image.fromarray(np.around(255*Red[::-1,:]).astype('uint8'))
+Green_image = Image.fromarray(np.around(255*Green[::-1,:]).astype('uint8'))
+Blue_image = Image.fromarray(np.around(255*Blue[::-1,:]).astype('uint8'))
+image = Image.merge('RGB', (Red_image, Green_image, Blue_image))
+image = image.rotate(sys_args.rotate)
+if sys_args.crop is not None:
+    image = image.crop(sys_args.crop)
+image.save(sys_args.composite)
