@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+# fits2comp
+# Create composite color image from multiple FITS images.
+# Written by Sebastiaan L. Zoutendijk, 2014-2018.
+# Based on formulae from Lupton R., Blanton M.R., Fekete G., Hogg D.W., O'Mullane W., Szalay A., Wherry N., 2004, PASP, 116, 133.
+
 import argparse
 from astropy.io import fits
 import numpy as np
