@@ -51,14 +51,17 @@ parser.add_argument('composite', metavar='COMPOSITE',
 sys_args = parser.parse_args()
 
 red_file = fits.open(sys_args.red)
+mask = np.isfinite(red_file[1].data)
 red = np.nan_to_num(red_file[1].data) - sys_args.background
 red_file.close()
 if sys_args.green is not None:
     green_file = fits.open(sys_args.green)
+    mask &= np.isfinite(green_file[1].data)
     green = np.nan_to_num(green_file[1].data) - sys_args.background
     green_file.close()
     if sys_args.blue is not None:
         blue_file = fits.open(sys_args.blue)
+        mask &= np.isfinite(blue_file[1].data)
         blue = np.nan_to_num(blue_file[1].data) - sys_args.background
         blue_file.close()
     else:
@@ -127,7 +130,8 @@ else:
 Red_image = Image.fromarray(np.around(255*Red[::-1,:]).astype('uint8'))
 Green_image = Image.fromarray(np.around(255*Green[::-1,:]).astype('uint8'))
 Blue_image = Image.fromarray(np.around(255*Blue[::-1,:]).astype('uint8'))
-image = Image.merge('RGB', (Red_image, Green_image, Blue_image))
+Alpha_image = Image.fromarray(255*mask.astype('uint8'))
+image = Image.merge('RGBA', (Red_image, Green_image, Blue_image, Alpha_image))
 image = image.rotate(sys_args.rotate)
 
 tags = PngImagePlugin.PngInfo()
