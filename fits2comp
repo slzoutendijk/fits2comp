@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 
 # fits2comp
-# Create composite color image from multiple FITS images.
+# Create color composite images from FITS files.
 # Written by Sebastiaan L. Zoutendijk, 2014-2018.
 # Based on formulae from Lupton R., Blanton M.R., Fekete G., Hogg D.W., O'Mullane W., Szalay A., Wherry N., 2004, PASP, 116, 133.
 
 import argparse
 from astropy.io import fits
 import numpy as np
-from PIL import Image
+from PIL import Image, PngImagePlugin
 
 
 def mapping(value, cutoff, softening):
@@ -129,6 +129,20 @@ Green_image = Image.fromarray(np.around(255*Green[::-1,:]).astype('uint8'))
 Blue_image = Image.fromarray(np.around(255*Blue[::-1,:]).astype('uint8'))
 image = Image.merge('RGB', (Red_image, Green_image, Blue_image))
 image = image.rotate(sys_args.rotate)
+
+tags = PngImagePlugin.PngInfo()
+tags.add_text('Software', 'fits2comp')
+tags.add_text('--background', repr(sys_args.background))
+tags.add_text('--crop', repr(sys_args.crop))
+tags.add_text('--cutoff', repr(sys_args.cutoff))
+tags.add_text('--rotate', repr(sys_args.rotate))
+tags.add_text('--stretch', repr(sys_args.stretch))
+tags.add_text('--softening', repr(sys_args.softening))
+tags.add_text('RED', repr(sys_args.red))
+tags.add_text('BLUE', repr(sys_args.blue))
+tags.add_text('GREEN', repr(sys_args.green))
+tags.add_text('COMPOSITE', repr(sys_args.composite))
+
 if sys_args.crop is not None:
-    image = image.crop(sys_args.crop)
-image.save(sys_args.composite)
+    image = image.crop(sys_args.crop, pnginfo=tags)
+image.save(sys_args.composite, pnginfo=tags)
