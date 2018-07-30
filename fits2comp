@@ -1,21 +1,21 @@
-#!/home/bas/venv/fits2comp/bin/python
+#!/usr/bin/env python
 
 import argparse
-import pyfits
+from astropy.io import fits
 import numpy as np
 from PIL import Image
 
 
-def mapping(value):
-    mapped = scaling(value.astype(float)-sys_args.minimum) / \
-        scaling(sys_args.maximum - sys_args.minimum)
-    mapped[value < sys_args.minimum] = 0
-    mapped[value > sys_args.maximum] = 1
+def mapping(value, cutoff, softening):
+    mapped = scaling(value.astype(float), softening) / \
+        scaling(cutoff, softening)
+    mapped[value < 0] = 0
+    mapped[value > cutoff] = 1
     return mapped
 
 
-def scaling(value):
-    scaled = np.arcsinh(value/sys_args.softening)
+def scaling(value, softening):
+    scaled = np.arcsinh(value/softening)
     return scaled
 
 
@@ -24,14 +24,16 @@ parser = argparse.ArgumentParser(
     epilog="""If only RED is given, GREEN and BLUE are taken equal to RED,
            which produces a grayscale image.  If RED and GREEN are given,
            BLUE is extrapolated from them.""")
-parser.add_argument('-c', '--crop', metavar=('LEFT', 'UP', 'RIGHT', 'DOWN'),
+parser.add_argument('-b', '--background', default=0, type=float,
+                    help='background pixel value in FITS')
+parser.add_argument('-C', '--crop', metavar=('LEFT', 'UP', 'RIGHT', 'DOWN'),
                     nargs=4, type=int, help='cropping bounding box')
-parser.add_argument('-M', '--maximum', default=65535, type=float,
-                    help='maximum FITS pixel value')
-parser.add_argument('-m', '--minimum', default=0, type=float,
-                    help='minimum FITS pixel value')
+parser.add_argument('-c', '--cutoff', default=65535, type=float,
+                    help='cut-off pixel value in FITS')
 parser.add_argument('-r', '--rotate', metavar='DEGREES', default=0, type=float,
                     help='rotate image by DEGREES degrees')
+parser.add_argument('-S', '--stretch', default=0, type=float,
+                    help='stretch around background with this amplitude')
 parser.add_argument('-s', '--softening', default=1, type=float,
                     help='softening parameter')
 parser.add_argument('red', metavar='RED', help='red channel FITS file')
@@ -43,16 +45,16 @@ parser.add_argument('composite', metavar='COMPOSITE',
                     help='output composite image')
 sys_args = parser.parse_args()
 
-red_file = pyfits.open(sys_args.red)
-red = np.nan_to_num(red_file[0].data)
+red_file = fits.open(sys_args.red)
+red = np.nan_to_num(red_file[1].data) - sys_args.background
 red_file.close()
 if sys_args.green is not None:
-    green_file = pyfits.open(sys_args.green)
-    green = np.nan_to_num(green_file[0].data)
-    green_file.colse()
+    green_file = fits.open(sys_args.green)
+    green = np.nan_to_num(green_file[1].data) - sys_args.background
+    green_file.close()
     if sys_args.blue is not None:
-        blue_file = pyfits.open(sys_args.blue)
-        blue = nan_to_num(blue_file[0].data)
+        blue_file = fits.open(sys_args.blue)
+        blue = np.nan_to_num(blue_file[1].data) - sys_args.background
         blue_file.close()
     else:
         blue = 2 * green - red
@@ -61,19 +63,61 @@ else:
     blue = red
 average = (red+green+blue) / 3
 
-Red = np.zeros(red.shape)
-Red[average != 0] = red[average != 0] * mapping(average[average != 0]) / \
-    average[average != 0]
-Green = np.zeros(green.shape)
-Green[average != 0] = green[average != 0] * mapping(average[average != 0]) / \
-    average[average != 0]
-Blue = np.zeros(blue.shape)
-Blue[average != 0] = blue[average != 0] * mapping(average[average != 0]) / \
-    average[average != 0]
-amax = np.amax([Red, Green, Blue], axis=0)
-Red[amax > 1] = Red[amax > 1] / amax[amax > 1]
-Green[amax > 1] = Green[amax > 1] / amax[amax > 1]
-Blue[amax > 1] = Blue[amax > 1] / amax[amax > 1]
+if sys_args.stretch == 0:
+    Red = np.zeros(red.shape)
+    Green = np.zeros(green.shape)
+    Blue = np.zeros(blue.shape)
+    Red[average > 0] = red[average > 0] * mapping(average[average > 0], sys_args.cutoff, sys_args.softening) / \
+        average[average > 0]
+    Green[average > 0] = green[average > 0] * mapping(average[average > 0], sys_args.cutoff, sys_args.softening) / \
+        average[average > 0]
+    Blue[average > 0] = blue[average > 0] * mapping(average[average > 0], sys_args.cutoff, sys_args.softening) / \
+        average[average > 0]
+    amax = np.amax([Red, Green, Blue], axis=0)
+    Red[amax > 1] = Red[amax > 1] / amax[amax > 1]
+    Green[amax > 1] = Green[amax > 1] / amax[amax > 1]
+    Blue[amax > 1] = Blue[amax > 1] / amax[amax > 1]
+    Red[Red < 0] = 0
+    Green[Green < 0] = 0
+    Blue[Blue < 0] = 0
+else:
+    negRed = np.zeros(red.shape)
+    negGreen = np.zeros(green.shape)
+    negBlue = np.zeros(blue.shape)
+    negRed[average < 0] = -red[average < 0] * mapping(-average[average < 0], sys_args.stretch, sys_args.softening) / \
+        -average[average < 0]
+    negGreen[average < 0] = -green[average < 0] * mapping(-average[average < 0], sys_args.stretch, sys_args.softening) / \
+        -average[average < 0]
+    negBlue[average < 0] = -blue[average < 0] * mapping(-average[average < 0], sys_args.stretch, sys_args.softening) / \
+        -average[average < 0]
+    amax = np.amax([negRed, negGreen, negBlue], axis=0)
+    negRed[amax > 1] = negRed[amax > 1] / amax[amax > 1]
+    negGreen[amax > 1] = negGreen[amax > 1] / amax[amax > 1]
+    negBlue[amax > 1] = negBlue[amax > 1] / amax[amax > 1]
+    negRed[negRed < 0] = 0
+    negGreen[negGreen < 0] = 0
+    negBlue[negBlue < 0] = 0
+
+    posRed = np.zeros(red.shape)
+    posGreen = np.zeros(green.shape)
+    posBlue = np.zeros(blue.shape)
+    posRed[average > 0] = +red[average > 0] * mapping(+average[average > 0], sys_args.stretch, sys_args.softening) / \
+        +average[average > 0]
+    posGreen[average > 0] = +green[average > 0] * mapping(+average[average > 0], sys_args.stretch, sys_args.softening) / \
+        +average[average > 0]
+    posBlue[average > 0] = +blue[average > 0] * mapping(+average[average > 0], sys_args.stretch, sys_args.softening) / \
+        +average[average > 0]
+    amax = np.amax([posRed, posGreen, posBlue], axis=0)
+    posRed[amax > 1] = posRed[amax > 1] / amax[amax > 1]
+    posGreen[amax > 1] = posGreen[amax > 1] / amax[amax > 1]
+    posBlue[amax > 1] = posBlue[amax > 1] / amax[amax > 1]
+    posRed[posRed < 0] = 0
+    posGreen[posGreen < 0] = 0
+    posBlue[posBlue < 0] = 0
+
+    Red = (-negRed+posRed) / 2. + 0.5
+    Green = (-negGreen+posGreen) / 2. + 0.5
+    Blue = (-negBlue+posBlue) / 2. + 0.5
 
 Red_image = Image.fromarray(np.around(255*Red[::-1,:]).astype('uint8'))
 Green_image = Image.fromarray(np.around(255*Green[::-1,:]).astype('uint8'))
