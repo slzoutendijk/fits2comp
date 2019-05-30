@@ -2,7 +2,7 @@
 
 # fits2comp
 # Create color composite images from FITS files.
-# Written by Sebastiaan L. Zoutendijk, 2014-2018.
+# Written by Sebastiaan L. Zoutendijk, 2014-2019.
 # Based on formulae from Lupton R., Blanton M.R., Fekete G., Hogg D.W., O'Mullane W., Szalay A., Wherry N., 2004, PASP, 116, 133.
 
 import argparse
@@ -130,7 +130,7 @@ else:
 Red_image = Image.fromarray(np.around(255*Red[::-1,:]).astype('uint8'))
 Green_image = Image.fromarray(np.around(255*Green[::-1,:]).astype('uint8'))
 Blue_image = Image.fromarray(np.around(255*Blue[::-1,:]).astype('uint8'))
-Alpha_image = Image.fromarray(255*mask.astype('uint8'))
+Alpha_image = Image.fromarray(255*mask[::-1,:].astype('uint8'))
 image = Image.merge('RGBA', (Red_image, Green_image, Blue_image, Alpha_image))
 image = image.rotate(sys_args.rotate)
 
