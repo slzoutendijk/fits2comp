@@ -32,6 +32,8 @@ parser = argparse.ArgumentParser(
     epilog="""If only RED is given, GREEN and BLUE are taken equal to RED,
            which produces a grayscale image.  If RED and GREEN are given,
            BLUE is extrapolated from them.""")
+parser.add_argument('-A', '--no-annotation-area', action='store_true',
+                    help='draw ruler and compass in the image area')
 parser.add_argument('-B', '--crop', metavar=('LEFT', 'UP', 'RIGHT', 'DOWN'),
                     nargs=4, type=int, help='cropping bounding box')
 parser.add_argument('-b', '--background', default=0, type=float,
@@ -170,7 +172,7 @@ if sys_args.source_list is not None:
                 continue
             break
 
-if sys_args.ruler is not None or sys_args.compass:
+if (sys_args.ruler is not None or sys_args.compass) and not sys_args.no_annotation_area:
     image = image.crop((0, 0, image.size[0], image.size[1]+100))
     draw = ImageDraw.Draw(image)
 
@@ -212,6 +214,7 @@ tags.add_text('--background', repr(sys_args.background))
 tags.add_text('--compass', repr(sys_args.compass))
 tags.add_text('--crop', repr(sys_args.crop))
 tags.add_text('--cutoff', repr(sys_args.cutoff))
+tags.add_text('--no-annotation-area', repr(sys_args.no_annotation_area))
 tags.add_text('--offset', repr(sys_args.offset))
 tags.add_text('--rotate', repr(sys_args.rotate))
 tags.add_text('--ruler', repr(sys_args.ruler))
