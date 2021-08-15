@@ -159,8 +159,16 @@ if sys_args.source_list is not None:
     sources = wcs.all_world2pix(np.array([cat["RAdeg"], cat["DEdeg"]]).transpose(), 0)
 
     for source in sources:
-        source = np.array([source[0]+sys_args.offset[0], image.size[1]-(source[1]+sys_args.offset[1])])
-        draw.ellipse((tuple(source-10), tuple(source+10)), outline="lime", width=3)
+        source = np.array([source[0]+sys_args.offset[0], (source[1]+sys_args.offset[1])])
+        for x in range(mask.shape[1]):
+            for y in range(mask.shape[0]):
+                if (x-source[0])**2 + (y-source[1])**2 <= 10**2 and mask[y,x]:
+                    source = np.array([source[0], image.size[1]-source[1]])
+                    draw.ellipse((tuple(source-10), tuple(source+10)), outline="lime", width=3)
+                    break
+            else:
+                continue
+            break
 
 if sys_args.ruler is not None or sys_args.compass:
     image = image.crop((0, 0, image.size[0], image.size[1]+100))
