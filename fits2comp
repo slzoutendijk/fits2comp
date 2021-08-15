@@ -44,8 +44,8 @@ parser.add_argument('-l', '--source-list', metavar='FILENAME', type=str,
                     help='indicate source positions from file')
 parser.add_argument('-o', '--offset', metavar=('X', 'Y'), nargs=2, default=(0, 0), type=float,
                     help='X and Y offset of source positions, in pixels')
-parser.add_argument('-R', '--ruler', metavar='LABEL', type=str,
-                    help='add 1 arcmin ruler with label')
+parser.add_argument('-R', '--ruler', metavar=('ANGULAR', 'PHYSICAL'), nargs=2, type=str,
+                    help='add ruler of ANGULAR length, with ANGULAR and PHYSICAL labels')
 parser.add_argument('-r', '--rotate', metavar='DEGREES', default=0, type=float,
                     help='rotate image by DEGREES degrees')
 parser.add_argument('-S', '--stretch', default=0, type=float,
@@ -172,11 +172,12 @@ if sys_args.ruler is not None:
     line_test_px = (51, 50)
     line_test_deg = SkyCoord(*wcs.all_pix2world(*line_test_px, 0), unit="deg")
     line_pos_ang = line_start_deg.position_angle(line_test_deg)
-    line_end_deg = line_start_deg.directional_offset_by(line_pos_ang, Angle(sys_args.ruler))
+    line_end_deg = line_start_deg.directional_offset_by(line_pos_ang, Angle(sys_args.ruler[0]))
     line_end_px = wcs.all_world2pix(line_end_deg.ra.deg, line_end_deg.dec.deg, 0)
     draw.line(((line_start_px[0], image.size[1]-line_start_px[1]), (line_end_px[0], image.size[1]-line_end_px[1])), fill="lime", width=5)
     half_line = np.mean([line_start_px, line_end_px], axis=0)
-    draw.text((half_line[0], image.size[1]-half_line[1]-5), sys_args.ruler, font=ImageFont.truetype("DejaVuSans.ttf", 24), fill="lime", anchor="md")
+    draw.text((half_line[0], image.size[1]-half_line[1]-5), sys_args.ruler[0], font=ImageFont.truetype("DejaVuSans.ttf", 24), fill="lime", anchor="md")
+    draw.text((half_line[0], image.size[1]-half_line[1]+5), sys_args.ruler[1], font=ImageFont.truetype("DejaVuSans.ttf", 24), fill="lime", anchor="ma")
 
 if sys_args.compass:
     compass_start_px = (image.size[0]-50, 50)
