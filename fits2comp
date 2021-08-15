@@ -32,10 +32,12 @@ parser = argparse.ArgumentParser(
     epilog="""If only RED is given, GREEN and BLUE are taken equal to RED,
            which produces a grayscale image.  If RED and GREEN are given,
            BLUE is extrapolated from them.""")
+parser.add_argument('-B', '--crop', metavar=('LEFT', 'UP', 'RIGHT', 'DOWN'),
+                    nargs=4, type=int, help='cropping bounding box')
 parser.add_argument('-b', '--background', default=0, type=float,
                     help='background pixel value in FITS')
-parser.add_argument('-C', '--crop', metavar=('LEFT', 'UP', 'RIGHT', 'DOWN'),
-                    nargs=4, type=int, help='cropping bounding box')
+parser.add_argument('-C', '--compass', action='store_true',
+                    help='add compass indicating north and east')
 parser.add_argument('-c', '--cutoff', default=65535, type=float,
                     help='cut-off pixel value in FITS')
 parser.add_argument('-l', '--source-list', metavar='FILENAME', type=str,
@@ -160,23 +162,45 @@ if sys_args.source_list is not None:
         source = np.array([source[0]+sys_args.offset[0], image.size[1]-(source[1]+sys_args.offset[1])])
         draw.ellipse((tuple(source-10), tuple(source+10)), outline="lime", width=3)
 
-if sys_args.ruler is not None:
-    image = image.crop((0, 0, image.size[0], image.size[1]+70))
+if sys_args.ruler is not None or sys_args.compass:
+    image = image.crop((0, 0, image.size[0], image.size[1]+100))
     draw = ImageDraw.Draw(image)
-    line_start_px = (20, 20)
+
+if sys_args.ruler is not None:
+    line_start_px = (50, 50)
     line_start_deg = SkyCoord(*wcs.all_pix2world(*line_start_px, 0), unit="deg")
-    line_test_px = (40, 20)
+    line_test_px = (51, 50)
     line_test_deg = SkyCoord(*wcs.all_pix2world(*line_test_px, 0), unit="deg")
     line_pos_ang = line_start_deg.position_angle(line_test_deg)
-    line_end_deg = line_start_deg.directional_offset_by(line_pos_ang, Angle('1arcmin'))
+    line_end_deg = line_start_deg.directional_offset_by(line_pos_ang, Angle(sys_args.ruler))
     line_end_px = wcs.all_world2pix(line_end_deg.ra.deg, line_end_deg.dec.deg, 0)
     draw.line(((line_start_px[0], image.size[1]-line_start_px[1]), (line_end_px[0], image.size[1]-line_end_px[1])), fill="lime", width=5)
     half_line = np.mean([line_start_px, line_end_px], axis=0)
     draw.text((half_line[0], image.size[1]-half_line[1]-5), sys_args.ruler, font=ImageFont.truetype("DejaVuSans.ttf", 24), fill="lime", anchor="md")
 
+if sys_args.compass:
+    compass_start_px = (image.size[0]-50, 50)
+    compass_start_deg = SkyCoord(*wcs.all_pix2world(*compass_start_px, 0), unit="deg")
+    compass_north_test_deg = compass_start_deg.directional_offset_by(0, Angle('1arcsec'))
+    compass_north_test_px = wcs.all_world2pix(compass_north_test_deg.ra.deg, compass_north_test_deg.dec.deg, 0)
+    compass_north_xy_ang = np.arctan2(compass_north_test_px[1]-compass_start_px[1], compass_north_test_px[0]-compass_start_px[0])
+    compass_north_end_px = (compass_start_px[0] + 25 * np.cos(compass_north_xy_ang), compass_start_px[1] + 25 * np.sin(compass_north_xy_ang))
+    compass_north_text_px = (compass_start_px[0] + 40 * np.cos(compass_north_xy_ang), compass_start_px[1] + 40 * np.sin(compass_north_xy_ang))
+    compass_east_test_deg = compass_start_deg.directional_offset_by(np.pi/2, Angle('1arcsec'))
+    compass_east_test_px = wcs.all_world2pix(compass_east_test_deg.ra.deg, compass_east_test_deg.dec.deg, 0)
+    compass_east_xy_ang = np.arctan2(compass_east_test_px[1]-compass_start_px[1], compass_east_test_px[0]-compass_start_px[0])
+    compass_east_end_px = (compass_start_px[0] + 25 * np.cos(compass_east_xy_ang), compass_start_px[1] + 25 * np.sin(compass_east_xy_ang))
+    compass_east_text_px = (compass_start_px[0] + 40 * np.cos(compass_east_xy_ang), compass_start_px[1] + 40 * np.sin(compass_east_xy_ang))
+    draw.line(((compass_north_end_px[0], image.size[1]-compass_north_end_px[1]), (compass_start_px[0], image.size[1]-compass_start_px[1]), (compass_east_end_px[0], image.size[1]-compass_east_end_px[1])), fill="lime", width=5)
+    draw.regular_polygon(((compass_north_end_px[0], image.size[1]-compass_north_end_px[1]), 5), 3, compass_north_xy_ang*180/np.pi-90, fill="lime")
+    draw.regular_polygon(((compass_east_end_px[0], image.size[1]-compass_east_end_px[1]), 5), 3, compass_east_xy_ang*180/np.pi-90, fill="lime")
+    draw.text((compass_north_text_px[0], image.size[1]-compass_north_text_px[1]), 'N', font=ImageFont.truetype("DejaVuSans.ttf", 24), fill="lime", anchor="mm")
+    draw.text((compass_east_text_px[0], image.size[1]-compass_east_text_px[1]), 'E', font=ImageFont.truetype("DejaVuSans.ttf", 24), fill="lime", anchor="mm")
+
 tags = PngImagePlugin.PngInfo()
 tags.add_text('Software', 'fits2comp')
 tags.add_text('--background', repr(sys_args.background))
+tags.add_text('--compass', repr(sys_args.compass))
 tags.add_text('--crop', repr(sys_args.crop))
 tags.add_text('--cutoff', repr(sys_args.cutoff))
 tags.add_text('--offset', repr(sys_args.offset))
@@ -191,5 +215,5 @@ tags.add_text('GREEN', repr(sys_args.green))
 tags.add_text('COMPOSITE', repr(sys_args.composite))
 
 if sys_args.crop is not None:
-    image = image.crop(sys_args.crop, pnginfo=tags)
+    image = image.crop(sys_args.crop)
 image.save(sys_args.composite, pnginfo=tags)
