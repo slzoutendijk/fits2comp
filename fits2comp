@@ -166,7 +166,7 @@ if sys_args.source_list is not None:
             for y in range(mask.shape[0]):
                 if (x-source[0])**2 + (y-source[1])**2 <= 10**2 and mask[y,x]:
                     source = np.array([source[0], image.size[1]-source[1]])
-                    draw.ellipse((tuple(source-10), tuple(source+10)), outline="lime", width=3)
+                    draw.ellipse((tuple(source-10), tuple(source+10)), outline="yellow", width=1)
                     break
             else:
                 continue
