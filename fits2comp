@@ -153,13 +153,7 @@ wcs = WCS(red_file[1].header)
 
 if sys_args.source_list is not None:
     draw = ImageDraw.Draw(image)
-    #cat = Table.read(sys_args.source_list).as_array()
     cat = Table.read(sys_args.source_list)
-    #cat = cat[cat["Field"] != 6]
-    #cat = cat[cat["f_Member"] == 1]
-    #cat = cat[np.isnan(cat["L_Cluster"])]
-    #cat = [(np.mean(cat["RAdeg"][cat["ID"] == ID]), np.mean(cat["DEdeg"][cat["ID"] == ID])) for ID in list(set(cat["ID"]))]
-    #sources = wcs.all_world2pix(cat, 0)
     sources = wcs.all_world2pix(np.array([cat["RAdeg"], cat["DEdeg"]]).transpose(), 0)
 
     for source in sources:
