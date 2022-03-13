@@ -1,17 +1,17 @@
 # fits2comp
-# Create color composite images from FITS files.
-# Written by Sebastiaan L. Zoutendijk, 2014-2022.
-# Based on formulae from Lupton R., Blanton M.R., Fekete G., Hogg D.W., O'Mullane W., Szalay A., Wherry N., 2004, PASP, 116, 133.
+# Copyright (c) 2014-2022 Sebastiaan L. Zoutendijk
+# Licensed under the terms of the MIT License, see file LICENSE
 
 import argparse
 from PIL import PngImagePlugin
 
-from . import create_image, draw_annotations, mark_sources, read_colors, transform_colors
+from . import create_image, draw_annotations, mark_sources, read_colors, \
+    transform_colors
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Create color composite images from FITS files',
+        description='Create composite color images from FITS files',
         epilog="""If only RED is given, GREEN and BLUE are taken equal to RED,
                which produces a grayscale image.  If RED and GREEN are given,
                BLUE is extrapolated from them.""")
@@ -27,10 +27,13 @@ def main():
                         help='indicate source positions from file')
     parser.add_argument('-n', '--name', metavar='NAME', type=str,
                         help='add target name')
-    parser.add_argument('-o', '--offset', metavar=('X', 'Y'), nargs=2, default=(0, 0), type=float,
+    parser.add_argument('-o', '--offset', metavar=('X', 'Y'), nargs=2,
+                        default=(0, 0), type=float,
                         help='X and Y offset of source positions, in pixels')
-    parser.add_argument('-R', '--ruler', metavar=('ANGULAR', 'PHYSICAL'), nargs=2, type=str,
-                        help='add ruler of ANGULAR length, with ANGULAR and PHYSICAL labels')
+    parser.add_argument('-R', '--ruler', metavar=('ANGULAR', 'PHYSICAL'),
+                        nargs=2, type=str,
+                        help='add ruler of ANGULAR length, with ANGULAR ' + \
+                            'and PHYSICAL labels')
     parser.add_argument('-S', '--stretch', default=0, type=float,
                         help='stretch around background with this amplitude')
     parser.add_argument('-s', '--softening', default=1, type=float,
@@ -62,14 +65,21 @@ def main():
     tags.add_text('GREEN', repr(sys_args.green))
     tags.add_text('COMPOSITE', repr(sys_args.composite))
 
-    red, green, blue, mask, wcs = read_colors(sys_args.red, sys_args.green, sys_args.blue, sys_args.background)
-    Red, Green, Blue = transform_colors(red, green, blue, sys_args.cutoff, sys_args.stretch, sys_args.softening)
+    red, green, blue, mask, wcs = \
+        read_colors(sys_args.red, sys_args.green, sys_args.blue,
+                    sys_args.background)
+    Red, Green, Blue = \
+        transform_colors(red, green, blue, sys_args.cutoff, sys_args.stretch,
+                         sys_args.softening)
     image = create_image(Red, Green, Blue, mask)
-    image = mark_sources(image, mask, wcs, sys_args.source_list, sys_args.offset)
-    image = draw_annotations(image, wcs, sys_args.name, sys_args.ruler, sys_args.compass, sys_args.no_annotation_area)
+    image = \
+        mark_sources(image, mask, wcs, sys_args.source_list, sys_args.offset)
+    image = \
+        draw_annotations(image, wcs, sys_args.name, sys_args.ruler,
+                         sys_args.compass, sys_args.no_annotation_area)
 
-    image.save(sys_args.composite, format="PNG", pnginfo=tags)
+    image.save(sys_args.composite, format='PNG', pnginfo=tags)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
